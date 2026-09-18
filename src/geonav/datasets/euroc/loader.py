@@ -6,12 +6,14 @@ from typing import Optional, Union
 import numpy as np
 
 from geonav.datasets.euroc.camera_loader import EurocCameraLoader
+from geonav.datasets.euroc.groundtruth_loader import EurocGroundTruthLoader
 from geonav.datasets.euroc.imu_loader import EurocIMULoader
 from geonav.datasets.euroc.types import (
     CameraCalibration,
     DatasetImage,
     DatasetIMUSample,
     DatasetSequence,
+    GroundTruthState,
 )
 
 
@@ -67,6 +69,13 @@ class EurocDataset:
         self.camera = EurocCameraLoader(sensor_root / self.camera_name)
         self.imu_loader = EurocIMULoader(sensor_root / self.imu_name)
 
+        # Optional ground-truth loader
+        gt_dir = sensor_root / "state_groundtruth_estimate0"
+        if gt_dir.is_dir() and (gt_dir / "data.csv").is_file():
+            self.gt_loader: Optional[EurocGroundTruthLoader] = EurocGroundTruthLoader(gt_dir)
+        else:
+            self.gt_loader = None
+
         sequence_name = self.root_path.name
         self.metadata = DatasetSequence(
             sequence_name=sequence_name,
@@ -85,6 +94,12 @@ class EurocDataset:
         """Iterate over dataset IMU samples in chronological order."""
         return iter(self.imu_loader)
 
+    def ground_truth(self) -> Iterator[GroundTruthState]:
+        """Iterate over dataset ground-truth states in chronological order."""
+        if self.gt_loader is None:
+            return iter([])
+        return iter(self.gt_loader)
+
     @property
     def num_images(self) -> int:
         """Total number of indexed images."""
@@ -94,6 +109,11 @@ class EurocDataset:
     def num_imu_samples(self) -> int:
         """Total number of recorded IMU samples."""
         return len(self.imu_loader)
+
+    @property
+    def num_ground_truth(self) -> int:
+        """Total number of recorded ground-truth states."""
+        return len(self.gt_loader) if self.gt_loader is not None else 0
 
     @property
     def camera_extrinsics(self) -> Optional[np.ndarray]:

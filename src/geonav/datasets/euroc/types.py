@@ -127,3 +127,26 @@ class CameraCalibration:
     distortion_model: str = "radial-tangential"
     resolution: Optional[Tuple[int, int]] = None
     rate_hz: Optional[float] = None
+
+
+@dataclass
+class GroundTruthState:
+    """Represents a ground-truth pose and state estimate from EuRoC dataset.
+
+    Attributes:
+        timestamp_ns: Nanosecond timestamp from dataset CSV.
+        timestamp: Timestamp in seconds (timestamp_ns * 1e-9).
+        position: 3D position (x, y, z) in meters in the reference frame.
+        orientation: Unit quaternion (qw, qx, qy, qz) in scalar-first format.
+        velocity: 3D linear velocity (vx, vy, vz) in m/s.
+        angular_velocity: 3D body angular velocity (wx, wy, wz) in rad/s.
+        linear_acceleration: 3D body linear acceleration (ax, ay, az) in m/s^2.
+    """
+
+    timestamp_ns: int
+    timestamp: float
+    position: Tuple[float, float, float]
+    orientation: Tuple[float, float, float, float]
+    velocity: Tuple[float, float, float]
+    angular_velocity: Tuple[float, float, float]
+    linear_acceleration: Tuple[float, float, float]
