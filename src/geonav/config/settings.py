@@ -1,6 +1,7 @@
 """Configuration settings and parameters for GEONAV-AI."""
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Optional, Tuple
 
 
@@ -205,3 +206,86 @@ class Settings:
     dataset: DatasetConfig = field(default_factory=DatasetConfig)
     vio: VIOConfig = field(default_factory=VIOConfig)
     mapping: MappingConfig = field(default_factory=MappingConfig)
+    profile: "OperatingProfile" = field(default_factory=lambda: OperatingProfile.DEVELOPMENT)
+    profile_config: "ProfileConfig" = field(default_factory=lambda: ProfileConfig())
+
+
+class OperatingProfile(Enum):
+    """Named operating profiles for edge-constrained vs development deployments.
+
+    DEVELOPMENT: Maximum tracking quality, all features enabled.
+    BALANCED:    Moderate quality/performance trade-off.
+    EDGE:        Minimal computational footprint for resource-constrained hardware.
+    """
+
+    DEVELOPMENT = "DEVELOPMENT"
+    BALANCED = "BALANCED"
+    EDGE = "EDGE"
+
+
+@dataclass
+class ProfileConfig:
+    """Per-profile computational parameter overrides.
+
+    Attributes:
+        max_features: Maximum visual features to track. Lower = faster, less accurate.
+        image_scale: Resize factor applied to input images before processing (1.0 = full res).
+        mapping_enabled: Whether the 3D mapping subsystem runs.
+        ml_inference_every_n: Run ML velocity correction every N frames (1 = every frame).
+        keyframe_interval_frames: Minimum frames between forced keyframe checks.
+        trajectory_buffer_limit: Maximum NavigationState entries stored in memory
+            (0 = unlimited). Use for long-run memory management.
+    """
+
+    max_features: int = 200
+    image_scale: float = 1.0
+    mapping_enabled: bool = True
+    ml_inference_every_n: int = 1
+    keyframe_interval_frames: int = 15
+    trajectory_buffer_limit: int = 0  # 0 = unlimited
+
+
+# Pre-defined profile configurations
+PROFILE_CONFIGS = {
+    OperatingProfile.DEVELOPMENT: ProfileConfig(
+        max_features=200,
+        image_scale=1.0,
+        mapping_enabled=True,
+        ml_inference_every_n=1,
+        keyframe_interval_frames=15,
+        trajectory_buffer_limit=0,
+    ),
+    OperatingProfile.BALANCED: ProfileConfig(
+        max_features=150,
+        image_scale=1.0,
+        mapping_enabled=True,
+        ml_inference_every_n=2,
+        keyframe_interval_frames=20,
+        trajectory_buffer_limit=10000,
+    ),
+    OperatingProfile.EDGE: ProfileConfig(
+        max_features=100,
+        image_scale=1.0,   # Keep full resolution to avoid intrinsic recalibration
+        mapping_enabled=False,
+        ml_inference_every_n=3,
+        keyframe_interval_frames=30,
+        trajectory_buffer_limit=5000,
+    ),
+}
+
+
+def get_settings_for_profile(profile: OperatingProfile) -> "Settings":
+    """Create a Settings object pre-configured for the specified operating profile.
+
+    Args:
+        profile: The desired OperatingProfile.
+
+    Returns:
+        Settings: Configured settings with appropriate VIO, mapping, and profile parameters.
+    """
+    cfg = PROFILE_CONFIGS[profile]
+    settings = Settings(profile=profile, profile_config=cfg)
+    settings.vio.max_features = cfg.max_features
+    settings.mapping.enabled = cfg.mapping_enabled
+    settings.mapping.keyframe_interval_frames = cfg.keyframe_interval_frames
+    return settings

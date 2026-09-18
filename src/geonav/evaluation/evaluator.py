@@ -106,8 +106,9 @@ class TrajectoryEvaluator:
             "5_seconds": compute_rpe(est_matched_pts, gt_matched_pts, interval_time_s=5.0, interval_name="5_seconds"),
         }
 
-        # 6. Orientation Error
-        orient_err = compute_orientation_errors(quats_est, quats_gt)
+        # 6. Orientation Error (Raw and Frame-Aligned)
+        orient_err = compute_orientation_errors(quats_est, quats_gt, align_initial=False)
+        aligned_orient_err = compute_orientation_errors(quats_est, quats_gt, align_initial=True)
 
         # 7. Scale Analysis
         scale_res = compute_scale_analysis(pts_est, pts_gt)
@@ -143,6 +144,7 @@ class TrajectoryEvaluator:
             axis_errors=axis_errors,
             rpe=rpe_dict,
             orientation_error=orient_err,
+            aligned_orientation_error=aligned_orient_err,
             scale_analysis=scale_res,
             velocity_error=vel_res,
             se3_alignment=se3_res,

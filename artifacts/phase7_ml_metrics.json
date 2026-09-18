@@ -1,0 +1,50 @@
+{
+  "dataset": "EuRoC MH_01_easy",
+  "model_architecture": "EdgeMLP (18 -> 32 -> 16 -> 3 + confidence head)",
+  "model_size_kb": 25.65,
+  "inference_engine": "NumpyEdgeMLP (zero-dependency pure NumPy)",
+  "processing_fps": 65.2,
+  "total_runtime_s": 56.44,
+  "split_policy": "Chronological (70% train, 30% evaluation, no shuffling)",
+  "baseline_metrics": {
+    "raw_ate_rmse_m": 88.92710585693273,
+    "final_position_error_m": 150.65218245610993,
+    "velocity_rmse_mps": 1.2860120058192557,
+    "axis_errors": {
+      "x_rmse_m": 5.766137566445758,
+      "y_rmse_m": 4.596716266830623,
+      "z_rmse_m": 88.62083283978546,
+      "x_mae_m": 5.091897378723514,
+      "y_mae_m": 4.152947329765582,
+      "z_mae_m": 76.7870972374808,
+      "x_max_m": 10.998006379060257,
+      "y_max_m": 8.219815668909698,
+      "z_max_m": 150.52240830572444
+    },
+    "scale_ratio": 2.310713104871057
+  },
+  "hybrid_metrics": {
+    "raw_ate_rmse_m": 6.004889465317015,
+    "final_position_error_m": 16.97381865045039,
+    "velocity_rmse_mps": 0.46154013930008253,
+    "axis_errors": {
+      "x_rmse_m": 2.8601233396648507,
+      "y_rmse_m": 4.41728751578971,
+      "z_rmse_m": 2.892397444236877,
+      "x_mae_m": 2.1344040606311543,
+      "y_mae_m": 2.8369609757572665,
+      "z_mae_m": 2.4192494298538207,
+      "x_max_m": 6.385165657060174,
+      "y_max_m": 14.150916860593815,
+      "z_max_m": 6.904486857824122
+    },
+    "scale_ratio": 0.6685792346947109
+  },
+  "eval_split_unseen_horizon": {
+    "sample_count": 1092,
+    "baseline_ate_rmse_m": 130.68237643805736,
+    "hybrid_ate_rmse_m": 9.721939674866546,
+    "baseline_velocity_rmse_mps": 1.2207163923992654,
+    "hybrid_velocity_rmse_mps": 0.6106386689049699
+  }
+}

@@ -4,50 +4,86 @@
 
 > **"GEONAV-AI is a navigation software module intended for integration into UAV platforms. It is not the UAV itself."**
 
+**Current status:** Software-validated on real EuRoC MAV dataset. No physical UAV hardware available. All performance claims are development-machine software benchmarks only.
+
 ## Problem
 
 Unmanned Aerial Vehicle (UAV) navigation becomes difficult or unreliable when GPS or other external global positioning signals are degraded, spoofed, or completely unavailable (GPS-denied environments such as indoor facilities, urban canyons, dense forests, or subterranean infrastructure).
 
 ## Intended Approach
 
-The intended technical approach of GEONAV-AI is to use onboard camera imagery and high-rate Inertial Measurement Unit (IMU) measurements as primary complementary sensor inputs for Visual-Inertial Odometry (VIO).
+GEONAV-AI uses onboard camera imagery and high-rate Inertial Measurement Unit (IMU) measurements for Visual-Inertial Odometry (VIO), enhanced with a lightweight edge-optimized ML velocity correction layer.
 
-## System Architecture
+## System Architecture (Phase 8)
 
 ```
-Camera Dataset ──→ Camera Loader ──→ Camera Frames
-                                          │
+Camera Dataset ──> Camera Loader ──> Camera Frames
+                                          |
                                      timestamps
-                                          ▼
+                                          v
                                     Synchronizer (Phase 3)
-                                          ▲
+                                          ^
                                      timestamps
-                                          │
-IMU Dataset ─────→ IMU Loader ────→ IMU Samples
-                                          │
-                                          ▼
+                                          |
+IMU Dataset ─────> IMU Loader ────> IMU Samples
+                                          |
+                                          v
                               Synchronized Measurements
-                                          │
-                                          ▼
+                                          |
+                                          v
                                   VIO Pipeline (Phase 4)
-                                          │
-                                          ▼
-                                   Navigation State
-                                          │
-                                          ▼
-                                    Local Trajectory
+                                  [Shi-Tomasi + LK Flow]
+                                  [Essential Matrix RANSAC]
+                                  [IMU Propagation + Fusion]
+                                          |
+                                          v
+                               Camera-IMU Extrinsics (Phase 4B)
+                               [EuRoC T_BS calibration]
+                                          |
+                                          v
+                            Mapping Subsystem (Phase 5)
+                            [Triangulation + Keyframes]
+                                          |
+                                          v
+                     Ground-Truth Evaluation (Phase 6)
+                     [ATE, RPE, Velocity Error, Scale]
+                                          |
+                                          v
+                    ML Velocity Correction (Phase 7)
+                    [NumpyEdgeMLP, Confidence Gating]
+                                          |
+                                          v
+             Hardware Abstraction + Health Monitor (Phase 8)
+             [CameraSource, IMUSource, NavigationOutput]
+             [OperatingProfile: DEVELOPMENT/BALANCED/EDGE]
+                                          |
+                                          v
+                           Navigation State + Trajectory
 ```
 
-### Architectural Components
+## Validated Performance (EuRoC MH_01_easy)
 
-- **Data Ingestion (EuRoC MAV format)**: Reads real recorded camera frames and IMU samples from a locally supplied dataset with accurate nanosecond timestamps.
-- **Camera Input**: Captures optical image frames representing visual observations of the surrounding environment (~20–30 Hz).
-- **IMU Input**: Captures high-frequency 3-axis linear acceleration and 3-axis angular velocity measurements (~200 Hz).
-- **Sensor Synchronization (Phase 3)**: Temporally windows and aligns high-rate IMU samples with inter-frame camera intervals using deterministic boundary rules.
-- **VIO Pipeline (Phase 4)**: Classical visual-inertial odometry baseline that fuses visual feature tracking and inertial propagation to estimate local vehicle state and trajectory.
-- **Navigation State**: Explicit typed representation of vehicle kinematics including timestamp, 3D position vector, 3D linear velocity vector, and orientation quaternion.
-- **Mapping Layer (Placeholder)**: Interface for future environmental representation and landmark maintenance.
-- **UAV Integration (Future)**: Downstream interface to provide estimated state output to UAV platform systems (such as an autopilot).
+**All metrics are development-machine software benchmarks. Not embedded/UAV hardware performance.**
+
+| Metric | Classical VIO | ML-Enhanced (Hybrid) | Reduction |
+|---|---|---|---|
+| Raw ATE RMSE [m] | 88.93 | **6.01** | 93.2% |
+| Final Position Error [m] | 150.65 | 16.97 | 88.7% |
+| Velocity RMSE [m/s] | 1.286 | 0.462 | 64.1% |
+| Vz RMSE [m/s] | 1.031 | 0.187 | 81.9% |
+| RPE 1s RMSE [m] | 1.163 | 0.395 | 66.0% |
+| RPE 5s RMSE [m] | 4.955 | 1.657 | 66.6% |
+| Processing Rate | ~54 FPS | ~54 FPS | — |
+| ML Inference Latency | — | 0.51 ms | — |
+| ML Model Size | — | 25.7 KB | — |
+| Mapping Landmarks | 279 | 279 | — |
+| Mean Reprojection Error | 0.889 px | 0.889 px | — |
+
+**Test suite: 185/185 passing**
+
+> Note: The 30% validation split is a chronologically held-out temporal segment from the same MH_01_easy sequence (not an unseen flight). Only one EuRoC sequence is currently available.
+
+---
 
 ## Development Phases
 
@@ -76,6 +112,41 @@ IMU Dataset ─────→ IMU Loader ────→ IMU Samples
 - Geometric motion estimation: Normalized coordinates, RANSAC essential matrix estimation (`cv2.findEssentialMat`), cheirality-checked pose recovery (`cv2.recoverPose`).
 - High-rate IMU propagator: Exact trapezoidal/quaternion integration with small-angle stability, body-to-world rotation, and gravity compensation in NED.
 - Loosely coupled state fusion: Gyro and visual rotation update via spherical linear interpolation (SLERP), translational direction constraint along visual epipolar ray, and fallback to `DEGRADED_IMU_ONLY` on visual tracking loss.
+
+### Phase 4A: Initial Gravity Leveling (Complete)
+- Stationary accelerometer-based gravity alignment for initial orientation estimate.
+- Eliminates the pure-zero initial attitude assumption.
+
+### Phase 4B: Camera-IMU Extrinsic Calibration (Complete)
+- Integrated real EuRoC T_BS calibration matrix into the VIO pipeline.
+- Verified body-frame consistency of relative rotation and translation transforms.
+- Geometry verification gate: PASSED.
+
+### Phase 5: Sparse 3D Mapping (Complete)
+- Lightweight keyframe-based triangulation subsystem.
+- 279 landmarks reconstructed from MH_01_easy with mean reprojection error 0.889 px.
+- PLY map export for external visualization.
+
+### Phase 6: Ground-Truth Evaluation (Complete)
+- Rigorous trajectory evaluation: ATE, RPE, axis errors, scale analysis, velocity errors.
+- SE(3) and Sim(3) alignment implemented.
+- Full comparison of estimated vs EuRoC ground-truth trajectory.
+
+### Phase 7: AI/ML Velocity Correction (Complete, Verified)
+- `NumpyEdgeMLP` — pure NumPy inference engine, 25.7 KB model, 0.51 ms/frame.
+- 18-dimensional causal feature vector (visual, IMU, VIO state).
+- Trained on first 70% of MH_01_easy; evaluated on last 30%.
+- **Baseline ATE RMSE: 88.93 m → Hybrid ATE RMSE: 6.01 m (raw, −93.2%)**.
+- Phase 7 Verification Gate: PASSED (all A1–A12 checks).
+- Independent metric verification script confirms all metrics exactly.
+
+### Phase 8: Edge Optimization & UAV Integration Readiness (Complete)
+- Hardware abstraction layer: `CameraSource`, `IMUSource`, `NavigationOutput`, `UAVIntegrationAdapter`.
+- `EurocCameraSource` / `EurocIMUSource` implement interfaces for dataset validation.
+- `HealthMonitor`: INITIALIZING → TRACKING → DEGRADED → LOST state machine.
+- `OperatingProfile` enum: DEVELOPMENT / BALANCED / EDGE with configurable `ProfileConfig`.
+- Profile benchmark: FPS vs accuracy trade-off across 3 profiles.
+- 185/185 tests passing.
 
 ---
 
@@ -246,81 +317,71 @@ To maintain clarity of scope, GEONAV-AI is explicitly **NOT**:
 - A standalone hardware GPS replacement device by itself
 - An obstacle avoidance or path planning system
 - A complete SLAM system with global mapping and loop closure
-- A trained deep-learning or neural network model
+- Validated on physical UAV hardware (software-validated on EuRoC dataset only)
+
+## Performance Profiling (Development-Machine Software Benchmark)
+
+Measured on development laptop, Python 3.11, CPU only. Do NOT extrapolate to embedded hardware.
+
+| Component | Mean (ms) | P95 (ms) |
+|---|---|---|
+| Preprocessing | 0.249 | 0.365 |
+| Optical Flow | 7.540 | 10.536 |
+| Essential Matrix | 3.081 | 5.341 |
+| IMU Propagation | 11.133 | 16.784 |
+| ML Inference + Correction | 0.508 | 0.733 |
+| **Total Frame** | **~18–25** | ~35 |
+| Peak Memory | 3.4 MB | — |
+| Real-time FPS (hybrid) | ~54 | — |
+
 
 ## Project Directory Structure
 
 ```
 GEONAV-AI/
-│
-├── src/
-│   └── geonav/
-│       ├── __init__.py                 # Package metadata
-│       │
-│       ├── config/                     # Configuration and coordinate frames
-│       │   ├── __init__.py
-│       │   └── settings.py             # Settings, sensor, sync, coordinate, & dataset configs
-│       │
-│       ├── datasets/                   # Visual-inertial dataset ingestion
-│       │   ├── __init__.py
-│       │   └── euroc/
-│       │       ├── __init__.py
-│       │       ├── camera_loader.py    # EuRoC camera CSV & image loader
-│       │       ├── imu_loader.py       # EuRoC IMU CSV sample loader
-│       │       ├── loader.py           # EurocDataset high-level reader
-│       │       └── types.py            # DatasetImage, DatasetIMUSample, DatasetSequence
-│       │
-│       ├── mapping/                    # Environmental mapping interface
-│       │   ├── __init__.py
-│       │   └── mapper.py               # Mapper interface entry points
-│       │
-│       ├── sensors/                    # Sensor interfaces, data structures, & dataset adapters
-│       │   ├── __init__.py
-│       │   ├── camera.py               # CameraFrame, CameraSensor, DatasetCameraSensor
-│       │   └── imu.py                  # IMUSample, IMUSensor, DatasetIMUSensor
-│       │
-│       ├── state/                      # Vehicle state representation
-│       │   ├── __init__.py
-│       │   └── state.py                # NavigationState representation
-│       │
-│       ├── synchronization/            # Temporal windowing & synchronization
-│       │   ├── __init__.py
-│       │   ├── synchronizer.py         # SensorSynchronizer, two-pointer stream synchronizer
-│       │   └── types.py                # SynchronizedMeasurement representation
-│       │
-│       └── vio/                        # Visual-Inertial Odometry pipeline
-│           ├── __init__.py
-│           ├── geometry.py             # Hamilton quaternion & 3D rotation utilities
-│           ├── imu_propagator.py       # High-rate discrete IMU kinematics integration
-│           ├── pipeline.py             # VIOPipeline implementation
-│           ├── types.py                # VIOStatus, VisualTrackingResult, IMUPropagationResult
-│           └── visual_frontend.py      # Shi-Tomasi corners, LK optical flow, Essential matrix
-│
-├── tests/                              # Unit test suite
-│   ├── __init__.py
-│   ├── test_camera.py                  # Camera frame & interface tests
-│   ├── test_config.py                  # Configuration tests (including VIOConfig)
-│   ├── test_euroc_dataset.py           # EuRoC dataset ingestion tests
-│   ├── test_imu.py                     # IMU sample & interface tests
-│   ├── test_state.py                   # Navigation state tests
-│   ├── test_synchronization.py         # Phase 3 camera-IMU synchronization tests
-│   ├── test_synchronizer.py            # Phase 1 buffer synchronizer tests
-│   └── test_vio.py                     # Phase 4 Visual-Inertial Odometry tests (14 tests)
-│
-├── data/
-│   ├── raw/                            # Reserved for local raw sensor recordings
-│   ├── processed/                      # Reserved for local prepared sensor data
-│   ├── .gitkeep
-│   └── README.md                       # Data directory & EuRoC layout documentation
-│
-├── scripts/
-│   ├── README.md                       # Operational scripts documentation
-│   └── validate_euroc_vio.py           # Real EuRoC dataset VIO validation script
-│
-├── requirements.txt                    # Project dependencies (NumPy, PyTest, OpenCV)
-├── .gitignore                          # Git ignore rules
-└── README.md                           # System documentation
+|
++-- src/
+|   +-- geonav/
+|       +-- __init__.py
+|       +-- config/
+|       |   +-- settings.py         # Settings, VIOConfig, MappingConfig, OperatingProfile
+|       +-- datasets/euroc/          # EurocDataset, camera/IMU loaders, types
+|       +-- evaluation/              # ATE, RPE, scale, velocity, SE3/Sim3 alignment
+|       +-- hardware/                # Phase 8: HAL interfaces, health monitor, adapters
+|       |   +-- interfaces.py        # CameraSource, IMUSource, NavigationOutput, UAVAdapter
+|       |   +-- health.py            # HealthMonitor state machine
+|       |   +-- nav_output.py        # NavigationMessage (SI-unit typed), ConsoleOutput
+|       |   +-- euroc_adapter.py     # EurocCameraSource, EurocIMUSource
+|       +-- mapping/                 # Phase 5: keyframe triangulation, PLY export
+|       +-- ml/                      # Phase 7: NumpyEdgeMLP, features, inference, train
+|       +-- sensors/                 # CameraFrame, IMUSample, sensor interfaces
+|       +-- state/                   # NavigationState
+|       +-- synchronization/         # SensorSynchronizer, SynchronizedMeasurement
+|       +-- vio/                     # Phase 4: pipeline, geometry, frontend, propagator
+|
++-- tests/                           # 185 unit tests
+|   +-- test_ml.py                   # Phase 7 ML tests (16 tests, incl. A11 gating)
+|   +-- test_hardware_interfaces.py  # Phase 8 HAL interface tests
+|   +-- test_health_monitoring.py    # Phase 8 health state machine tests
+|   +-- test_edge_configuration.py   # Phase 8 profile/config tests
+|   +-- [10 other test files]
+|
++-- scripts/
+|   +-- validate_euroc_vio.py        # Real-data VIO validation
+|   +-- verify_phase7_metrics.py     # Independent Phase 7 metric verification
+|   +-- profile_pipeline.py          # Phase 8 per-component latency profiler
+|   +-- benchmark_profiles.py        # Phase 8 DEVELOPMENT/BALANCED/EDGE benchmark
+|
++-- artifacts/                        # Exported metrics, weights, maps, plots
++-- PHASE_7_DATA_LEAKAGE_AUDIT.md
++-- PHASE_7_FEATURE_AUDIT.md
++-- PHASE_7_AI_ML_REPORT.md
++-- PHASE_6_GROUND_TRUTH_EVALUATION_REPORT.md
++-- FINAL_GEONAV_AI_REPORT.md
++-- requirements.txt
++-- README.md
 ```
+
 
 ## Getting Started
 
@@ -346,19 +407,36 @@ Execute the complete unit test suite using pytest:
 python -m pytest tests/ -v
 ```
 
+Expected: **185/185 tests passing**.
+
+### Running Validation Scripts
+
+```bash
+# Full real-data VIO validation (Phase 4)
+python scripts/validate_euroc_vio.py
+
+# Independent Phase 7 metric verification
+python scripts/verify_phase7_metrics.py
+
+# Phase 8 per-component latency profiler
+python scripts/profile_pipeline.py
+
+# Phase 8 profile benchmark (DEVELOPMENT vs BALANCED vs EDGE)
+python scripts/benchmark_profiles.py
+```
+
 ### Verifying Imports
 
 To verify package imports across all development phases:
 
 ```bash
-python -c "import sys; sys.path.insert(0, 'src'); import geonav; from geonav.datasets.euroc import EurocDataset; from geonav.synchronization import SensorSynchronizer, SynchronizedMeasurement; from geonav.vio import VIOPipeline, VisualFrontEnd, IMUPropagator, VIOStatus; from geonav.config.settings import Settings; print('Phase 1-4 imports verified successfully')"
+python -c "import sys; sys.path.insert(0, 'src'); import geonav; from geonav.datasets.euroc import EurocDataset; from geonav.vio import VIOPipeline; from geonav.ml.inference import MLVelocityCorrector; from geonav.hardware import HealthMonitor, EurocCameraSource; from geonav.config.settings import get_settings_for_profile, OperatingProfile; print('All phase imports verified successfully')"
 ```
 
 ### Validating on EuRoC Dataset
 
-To run the real-dataset validation script:
+To run the real-dataset validation script (requires MH_01_easy at `data/raw/euroc/MH_01_easy`):
 
 ```bash
 python scripts/validate_euroc_vio.py
 ```
-

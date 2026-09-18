@@ -247,12 +247,16 @@ def compute_rpe(
 def compute_orientation_errors(
     est_orientations: np.ndarray,
     gt_orientations: np.ndarray,
+    align_initial: bool = False,
 ) -> OrientationErrorResult:
-    """Compute absolute angular orientation error between estimated and ground-truth quaternions.
+    """Compute angular orientation error between estimated and ground-truth quaternions.
 
     Args:
         est_orientations: (N, 4) array of unit quaternions [qw, qx, qy, qz].
         gt_orientations: (N, 4) array of ground-truth unit quaternions.
+        align_initial: If True, aligns estimated orientations to ground-truth at t_0
+                       via R_w = R_gt(0) @ R_est(0).T to measure relative orientation drift.
+                       If False, computes raw orientation difference without frame transformation.
 
     Returns:
         OrientationErrorResult: RMSE, mean, median, and maximum error in degrees.
@@ -262,12 +266,24 @@ def compute_orientation_errors(
 
     if est.shape != gt.shape:
         raise ValueError(f"Orientation shape mismatch: {est.shape} vs {gt.shape}")
+    if len(est) == 0:
+        raise ValueError("Cannot compute orientation errors on empty orientation arrays")
+
+    R_w = np.eye(3, dtype=np.float64)
+    if align_initial and len(est) > 0:
+        R_e0 = quaternion_to_rotation_matrix(est[0])
+        R_g0 = quaternion_to_rotation_matrix(gt[0])
+        R_w = R_g0 @ R_e0.T
 
     errors_deg = []
     for q_e, q_g in zip(est, gt):
         R_e = quaternion_to_rotation_matrix(q_e)
         R_g = quaternion_to_rotation_matrix(q_g)
 
+        if align_initial:
+            R_e = R_w @ R_e
+
+        # Geodesic angle on SO(3): R_err = R_g^T @ R_e
         R_err = R_g.T @ R_e
         cos_ang = min(max((np.trace(R_err) - 1.0) * 0.5, -1.0), 1.0)
         errors_deg.append(math.degrees(math.acos(cos_ang)))

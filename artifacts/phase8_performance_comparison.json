@@ -1,0 +1,77 @@
+{
+  "DEVELOPMENT": {
+    "profile": "DEVELOPMENT",
+    "benchmark_type": "Development-machine software benchmark",
+    "frames_processed": 3682,
+    "total_runtime_s": 94.08,
+    "fps": 39.1,
+    "mean_latency_ms": 25.529,
+    "median_latency_ms": 24.817,
+    "p95_latency_ms": 35.037,
+    "peak_memory_mb": 4.1,
+    "tracking_failures": 0,
+    "raw_ate_rmse_m": 6.005,
+    "velocity_rmse_mps": 0.462,
+    "estimated_path_m": 53.83,
+    "gt_path_m": 80.514,
+    "scale_ratio": 0.669,
+    "rpe_1s_rmse_m": 0.395,
+    "rpe_5s_rmse_m": 1.657,
+    "profile_config": {
+      "max_features": 200,
+      "ml_inference_every_n": 1,
+      "mapping_enabled": true,
+      "keyframe_interval_frames": 15
+    }
+  },
+  "BALANCED": {
+    "profile": "BALANCED",
+    "benchmark_type": "Development-machine software benchmark",
+    "frames_processed": 3682,
+    "total_runtime_s": 160.67,
+    "fps": 22.9,
+    "mean_latency_ms": 43.602,
+    "median_latency_ms": 49.045,
+    "p95_latency_ms": 74.262,
+    "peak_memory_mb": 3.4,
+    "tracking_failures": 0,
+    "raw_ate_rmse_m": 52.64,
+    "velocity_rmse_mps": 0.928,
+    "estimated_path_m": 240825.681,
+    "gt_path_m": 80.514,
+    "scale_ratio": 2991.086,
+    "rpe_1s_rmse_m": 2.434,
+    "rpe_5s_rmse_m": 6.217,
+    "profile_config": {
+      "max_features": 150,
+      "ml_inference_every_n": 2,
+      "mapping_enabled": true,
+      "keyframe_interval_frames": 20
+    }
+  },
+  "EDGE": {
+    "profile": "EDGE",
+    "benchmark_type": "Development-machine software benchmark",
+    "frames_processed": 3682,
+    "total_runtime_s": 87.83,
+    "fps": 41.9,
+    "mean_latency_ms": 23.834,
+    "median_latency_ms": 23.7,
+    "p95_latency_ms": 32.624,
+    "peak_memory_mb": 3.1,
+    "tracking_failures": 0,
+    "raw_ate_rmse_m": 69.069,
+    "velocity_rmse_mps": 1.069,
+    "estimated_path_m": 182266.005,
+    "gt_path_m": 80.514,
+    "scale_ratio": 2263.767,
+    "rpe_1s_rmse_m": 71.474,
+    "rpe_5s_rmse_m": 71.186,
+    "profile_config": {
+      "max_features": 100,
+      "ml_inference_every_n": 3,
+      "mapping_enabled": false,
+      "keyframe_interval_frames": 30
+    }
+  }
+}

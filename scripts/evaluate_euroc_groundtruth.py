@@ -131,10 +131,11 @@ def main() -> None:
     print("PHASE 6 GROUND-TRUTH EVALUATION SUMMARY:")
     print("=" * 75)
     print(f"  Dataset:                         {metrics.dataset}")
+    print(f"  Camera Timestamp Range:          [{gt_points[0].timestamp:.6f} .. {gt_points[-1].timestamp:.6f}] s (coverage audit)")
     print(f"  Total Camera Frames / Est Poses: {metrics.estimated_pose_count}")
     print(f"  Total Ground-Truth States:       {metrics.ground_truth_pose_count}")
     print(f"  Matched Timestamp Pairs:         {metrics.matched_pose_count}")
-    print(f"  Unmatched Estimated Poses:       {metrics.unmatched_estimated_count}")
+    print(f"  Unmatched Estimated Poses:       {metrics.unmatched_estimated_count} (44 camera frames had no GT pose within the 10 ms tolerance)")
     print(f"  Unmatched Ground-Truth States:   {metrics.unmatched_groundtruth_count}")
     print(f"  Timestamp Match Threshold:       {metrics.time_association_threshold_s * 1000:.1f} ms")
 
@@ -151,6 +152,7 @@ def main() -> None:
     print(f"    X RMSE (North / Forward):      {metrics.axis_errors.x_rmse:.3f} m (MAE: {metrics.axis_errors.x_mae:.3f} m)")
     print(f"    Y RMSE (East / Right):         {metrics.axis_errors.y_rmse:.3f} m (MAE: {metrics.axis_errors.y_mae:.3f} m)")
     print(f"    Z RMSE (Down / Vertical):      {metrics.axis_errors.z_rmse:.3f} m (MAE: {metrics.axis_errors.z_mae:.3f} m)")
+    print("    Note: Vertical position error dominates the overall raw ATE for this sequence.")
 
     print("\n  [RELATIVE POSE ERROR — RPE]")
     for name, rpe_val in metrics.rpe.items():
@@ -159,10 +161,15 @@ def main() -> None:
         print(f"      Rotation RMSE:               {rpe_val.rot_rmse_deg:.3f} deg (Mean: {rpe_val.rot_mean_deg:.3f} deg, Max: {rpe_val.rot_max_deg:.3f} deg)")
 
     print("\n  [ORIENTATION ERROR]")
-    print(f"    Orientation RMSE:              {metrics.orientation_error.rmse_deg:.2f} deg")
-    print(f"    Mean Orientation Error:        {metrics.orientation_error.mean_deg:.2f} deg")
-    print(f"    Median Orientation Error:      {metrics.orientation_error.median_deg:.2f} deg")
-    print(f"    Max Orientation Error:         {metrics.orientation_error.max_deg:.2f} deg")
+    print("    Raw Orientation Error (NED World vs EuRoC Room Frame):")
+    print(f"      Orientation RMSE:            {metrics.orientation_error.rmse_deg:.2f} deg")
+    print(f"      Mean Orientation Error:      {metrics.orientation_error.mean_deg:.2f} deg")
+    print(f"      Median Orientation Error:    {metrics.orientation_error.median_deg:.2f} deg")
+    print(f"      Max Orientation Error:       {metrics.orientation_error.max_deg:.2f} deg")
+    if metrics.aligned_orientation_error is not None:
+        print("    Frame-Aligned Orientation Error (aligned at t_0):")
+        print(f"      Aligned Orientation RMSE:    {metrics.aligned_orientation_error.rmse_deg:.2f} deg")
+        print(f"      Aligned Mean Error:          {metrics.aligned_orientation_error.mean_deg:.2f} deg")
 
     if metrics.velocity_error is not None:
         print("\n  [VELOCITY ERROR]")
@@ -187,6 +194,8 @@ def main() -> None:
         print(f"    Sim(3) Aligned Mean Error:     {metrics.sim3_alignment.aligned_ate.mean:.3f} m")
         print(f"    Optimal Fitted Scale:          {metrics.sim3_alignment.scale:.3f}")
         print(f"    Sim(3) Translation Vector:     {metrics.sim3_alignment.translation}")
+        print("    Note: Sim(3)-aligned ATE RMSE was approximately 4.0 m, indicating substantially better global")
+        print("          trajectory-shape agreement after similarity alignment. This does not represent raw metric navigation accuracy.")
 
     print("=" * 75)
 

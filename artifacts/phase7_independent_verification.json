@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "dataset": "EuRoC MH_01_easy",
+  "frames_processed": 3682,
+  "fps": 55.9,
+  "gt_path_length_m": 80.514,
+  "independent_baseline": {
+    "ate_rmse_m": 88.9271,
+    "ate_mean_m": 77.3712,
+    "ate_median_m": 76.7206,
+    "final_position_error_m": 150.6522,
+    "velocity_rmse_mps": 1.286,
+    "vx_rmse_mps": 0.5056,
+    "vy_rmse_mps": 0.5783,
+    "vz_rmse_mps": 1.0314,
+    "path_length_m": 186.046,
+    "scale_ratio": 2.3107,
+    "rpe_1frame_rmse_m": 0.0643,
+    "rpe_1s_rmse_m": 1.1632,
+    "rpe_2s_rmse_m": 2.1853,
+    "rpe_5s_rmse_m": 4.9546
+  },
+  "independent_hybrid": {
+    "ate_rmse_m": 6.0049,
+    "ate_mean_m": 4.5244,
+    "ate_median_m": 3.548,
+    "final_position_error_m": 16.9738,
+    "velocity_rmse_mps": 0.4615,
+    "vx_rmse_mps": 0.2547,
+    "vy_rmse_mps": 0.3365,
+    "vz_rmse_mps": 0.1869,
+    "path_length_m": 53.83,
+    "scale_ratio": 0.6686,
+    "rpe_1frame_rmse_m": 0.0231,
+    "rpe_1s_rmse_m": 0.3946,
+    "rpe_2s_rmse_m": 0.7417,
+    "rpe_5s_rmse_m": 1.6575
+  },
+  "scale_ratio_note": "Scale ratio = path_length(estimated) / path_length(GT). This is a path-length ratio, NOT a formal metric-scale estimate. A value near 1.0 indicates similar total displacement magnitude, not that the trajectory shape is correct.",
+  "temporal_split_note": "The 70/30 split is a chronologically held-out temporal segment from the same MH_01_easy sequence. It is NOT an unseen-flight test.",
+  "ate_type": "RAW ATE (no SE3/Sim3 alignment applied to primary metrics)"
+}

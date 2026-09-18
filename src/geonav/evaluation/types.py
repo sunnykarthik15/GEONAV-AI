@@ -244,6 +244,7 @@ class EvaluationMetrics:
     orientation_error: OrientationErrorResult
     scale_analysis: ScaleAnalysisResult
     velocity_error: Optional[VelocityErrorResult] = None
+    aligned_orientation_error: Optional[OrientationErrorResult] = None
     se3_alignment: Optional[AlignmentResult] = None
     sim3_alignment: Optional[AlignmentResult] = None
     mapping_statistics: Optional[Dict[str, Any]] = None
@@ -264,6 +265,8 @@ class EvaluationMetrics:
             "orientation_error": self.orientation_error.to_dict(),
             "scale_analysis": self.scale_analysis.to_dict(),
         }
+        if self.aligned_orientation_error is not None:
+            d["aligned_orientation_error"] = self.aligned_orientation_error.to_dict()
         if self.velocity_error is not None:
             d["velocity_error"] = self.velocity_error.to_dict()
         if self.se3_alignment is not None:

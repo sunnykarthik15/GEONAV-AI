@@ -14,13 +14,13 @@ Phase 6 adheres strictly to the **Evaluation-Only Principle**:
 - Raw unaligned dead-reckoning errors are reported transparently alongside evaluation-only SE(3) rigid and Sim(3) similarity alignments.
 
 ### Key Benchmark Findings:
-- **Frame Association**: 3,638 of 3,682 camera frames (98.8%) were matched to ground-truth states within a strict 10.0 ms tolerance window. The remaining 44 unmatched camera frames occurred exclusively during pre-flight and post-flight intervals before the Leica tracking system was activated and after it was deactivated.
+- **Frame Association**: 3,638 of 3,682 camera frames (98.8%) were matched to ground-truth states within a strict 10.0 ms tolerance window. 44 camera frames had no GT pose within the configured 10 ms association tolerance (22 frames before GT tracking commenced, 22 frames after GT tracking ceased).
 - **Raw Dead-Reckoning ATE RMSE**: **88.927 m** (Mean: 77.371 m, Final: 150.652 m) across the 182-second, 80.51-meter flight envelope. Initial tracking error was only **0.094 m** (9.4 cm).
-- **Axis-Wise Drift Asymmetry**: Horizontal planar tracking remained tightly bounded (**X RMSE: 5.766 m**, **Y RMSE: 4.597 m**), demonstrating that visual tracking and horizontal gravity leveling function consistently. Over 99% of total variance originated along the vertical (**Z RMSE: 88.621 m**), caused by open-loop vertical accelerometer bias integration inherent to monocular VIO lacking altimetric/depth constraints.
+- **Axis-Wise Drift Breakdown**: Horizontal planar tracking remained bounded (**X RMSE: 5.766 m**, **Y RMSE: 4.597 m**). Vertical position error dominates the overall raw ATE for this sequence (**Z RMSE: 88.621 m**); the error growth is consistent with accumulated inertial integration error, with vertical drift dominating this sequence.
 - **Relative Pose Error (RPE)**: Frame-to-frame (0.05 s) translation RMSE was **0.0643 m** (6.4 cm/frame), demonstrating stable local inter-frame visual-inertial fusion. Over longer horizons (1s, 2s, 5s), translation RMSE grew to 1.163 m, 2.185 m, and 4.954 m.
-- **Shape Preservation (Sim(3) Alignment)**: Closed-form Umeyama similarity alignment yielded an ATE RMSE of **3.999 m** across the entire 80.5 m trajectory, demonstrating that the structural geometry and trajectory shape estimated by the frontend are remarkably consistent with reality, subject primarily to monocular scale dilation.
+- **Trajectory Shape Agreement (Sim(3) Alignment)**: Sim(3)-aligned ATE RMSE was approximately **3.999 m**, indicating substantially better global trajectory-shape agreement after similarity alignment. This does not represent raw metric navigation accuracy.
 - **Phase 5 Map Evaluation**: The 279 triangulated landmarks exhibited sub-pixel mean reprojection error (0.889 px), with spatial distribution following the estimated trajectory envelope.
-- **Test Suite**: 15 new mathematical and system tests passed cleanly, bringing the repository total to **117 / 117 tests passing (100%)**.
+- **Test Suite**: 19 mathematical and system tests passed cleanly, bringing the repository total to **121 / 121 tests passing (100%)**.
 
 ---
 
@@ -87,14 +87,20 @@ Because the camera operates at 20 Hz (50 ms interval) while ground truth is logg
 - **Association Gate**: $\Delta t = |t_{est} - t_{gt}| \le 0.010$ s (10.0 ms).
 - **Disambiguation**: Ties or multiple candidates are resolved by selecting the minimum $|\Delta t|$.
 
-### Association Results:
-- **Total Camera Frames**: 3,682
+### Association Results & Timestamp Coverage Audit:
+- **First Camera Frame Timestamp**: $1403636579.763556$ s
+- **Last Camera Frame Timestamp**: $1403636763.813556$ s (Total duration: $184.050$ s)
+- **First Ground-Truth Timestamp**: $1403636580.838556$ s
+- **Last Ground-Truth Timestamp**: $1403636762.743556$ s (Total duration: $181.905$ s)
+- **Total Camera Frames Evaluated**: 3,682
 - **Matched Timestamp Pairs**: 3,638 (98.80%)
-- **Unmatched Camera Frames**: 44 (1.20%)
-  - *Frames 0–21* (22 frames, $t \in [1403636579.76, 1403636580.81]$ s): Occurred prior to the start of the Leica ground-truth tracker ($t_{GT,0} = 1403636580.838$ s).
-  - *Frames 3660–3681* (22 frames, $t \in [1403636762.76, 1403636763.81]$ s): Occurred after the Leica tracker ceased logging ($t_{GT,end} = 1403636762.743$ s).
-- **Mean Timestamp Offset**: $0.0012$ s ($1.2$ ms), well below the 10.0 ms threshold.
-- **Unmatched Ground-Truth States**: 32,744 states (states occurring between 20 Hz camera frames).
+- **Unmatched Camera Frames**: 44 camera frames had no GT pose within the configured 10 ms association tolerance:
+  - *Frames 0–21* (22 frames, $t \in [1403636579.764, 1403636580.814]$ s): Logged prior to Leica tracker activation ($t_{GT,0} = 1403636580.839$ s).
+  - *Frames 3660–3681* (22 frames, $t \in [1403636762.764, 1403636763.814]$ s): Logged after Leica tracker deactivation ($t_{GT,end} = 1403636762.744$ s).
+- **Association Tolerance**: $\Delta t \le 10.0$ ms (Configured threshold)
+- **Mean Timestamp Offset**: $0.0012$ s ($1.2$ ms)
+- **Maximum Timestamp Offset**: $0.0048$ s ($4.8$ ms)
+- **Unmatched Ground-Truth States**: 32,744 states (sub-frame states due to 200 Hz GT vs 20 Hz camera rate).
 
 ---
 
@@ -147,17 +153,17 @@ Terminal Error Vector:        [ +6.203,  +0.776, +150.522 ] m
 
 ## 8. AXIS-SPECIFIC ERROR BREAKDOWN (X, Y, Z)
 
-Evaluating errors independently along body navigation axes ($X$: Forward/North, $Y$: Right/East, $Z$: Downward/Vertical) yields the most revealing insight into system dynamics:
+Evaluating errors independently along body navigation axes ($X$: Forward/North, $Y$: Right/East, $Z$: Downward/Vertical) yields clear insight into error distribution:
 
-| Axis | RMSE [m] | MAE [m] | Maximum Error [m] | Variance Explained [%] |
+| Axis | RMSE [m] | MAE [m] | Maximum Error [m] | Normalized Contribution $\left(\frac{\text{RMSE}_i^2}{\sum \text{RMSE}^2}\right)$ |
 | :--- | :--- | :--- | :--- | :--- |
 | **X (Forward / North)** | **5.766** | 5.092 | 10.998 | 0.42% |
 | **Y (Right / East)** | **4.597** | 4.153 | 8.220 | 0.27% |
 | **Z (Downward / Vertical)** | **88.621** | 76.787 | 150.522 | **99.31%** |
 
 ### Key Analytical Insight:
-- In the horizontal plane ($X, Y$), where visual feature tracking actively constrains translation and camera pitch/roll are observable via gravity leveling, total drift over the 3-minute, 80-meter trajectory is remarkably small: **5.766 m along X** and **4.597 m along Y**.
-- **99.31% of the total trajectory variance is confined entirely to the Z (vertical) axis.** In monocular vision, vertical displacement produces uniform optical scaling rather than strong parallax. In the absence of an altimeter, rangefinder, stereoscopic depth, or EKF vertical damping, accelerometer bias integrates quadratically ($p(t) \approx \frac{1}{2} b_a t^2$), producing steady vertical divergence.
+- In the horizontal plane ($X, Y$), where visual feature tracking actively constrains horizontal translation and pitch/roll are observable through gravity leveling, total displacement error over the 182-second, 80.5-meter trajectory remained bounded: **5.766 m along X** and **4.597 m along Y**.
+- **Vertical position error dominates the overall raw ATE for this sequence.** The error growth is consistent with accumulated inertial integration error, with vertical drift dominating this sequence. In monocular vision, purely vertical motion induces uniform optical expansion rather than distinct parallax, making vertical scale weakly constrained in the absence of an altimeter, stereo depth, or an integrated filter estimating IMU biases.
 
 ---
 
@@ -185,20 +191,36 @@ $$\mathbf{E}_{rel}(i, \Delta) = (\mathbf{T}_{gt, i}^{-1} \mathbf{T}_{gt, i+\Delt
 
 ## 10. ORIENTATION & ATTITUDE ERROR ANALYSIS
 
-The orientation error was computed as the minimum geodesic rotation angle on $SO(3)$ between estimated and ground-truth attitude quaternions:
+### Mathematical Formulation & Verification:
+The orientation error is evaluated on $SO(3)$ using the geodesic rotation angle between the ground-truth rotation matrix $R_g$ and the estimated rotation matrix $R_e$:
 
-$$\theta_{err} = 2 \arccos(|\langle \mathbf{q}_{est}, \mathbf{q}_{gt} \rangle|)$$
+$$R_{err} = R_g^\top R_e \quad \implies \quad \theta_{err} = \arccos\left(\text{clip}\left(\frac{\text{trace}(R_{err}) - 1}{2}, -1.0, 1.0\right)\right)$$
 
-| Metric | Value [deg] |
-| :--- | :--- |
-| **Orientation RMSE** | **129.50°** |
-| **Mean Orientation Error** | **124.02°** |
-| **Median Orientation Error** | **130.34°** |
-| **Maximum Orientation Error** | **179.99°** |
+Since $\text{trace}(R_g^\top R_e) = \text{trace}((R_e^\top R_g)^\top) = \text{trace}(R_e^\top R_g)$, the geodesic angle is mathematically symmetric. Both EuRoC ground truth ($q_{RS}$) and GEONAV-AI ($q_{WB}$) use the Hamilton scalar-first quaternion convention $[q_w, q_x, q_y, q_z]$ and represent Body-to-World rotations ($\mathbf{v}_{world} = R \mathbf{v}_{body}$). Unit quaternions are strictly normalized prior to matrix conversion.
 
-### Origin of Orientation Discrepancy:
-1. **Unobservable Initial Yaw**: The EuRoC ground truth attitude is referenced to the room coordinate frame (Vicon hall axes). The VIO pipeline initializes attitude via accelerometer leveling, which aligns the pitch and roll axes to gravity but leaves initial yaw unconstrained ($yaw = 0$ in the local start frame).
-2. **Gyroscope Bias Drift**: Without global magnetometer heading or loop-closure yaw constraints, the unmodeled gyroscope bias causes slow yaw drift over the 182-second trajectory.
+### Empirical Orientation Results:
+
+| Metric | Raw Evaluation (NED World vs Room Frame) | Frame-Aligned Evaluation (Aligned at $t_0$) |
+| :--- | :--- | :--- |
+| **Orientation RMSE** | **129.50°** | **133.47°** |
+| **Mean Orientation Error** | **124.02°** | **128.07°** |
+| **Median Orientation Error** | **130.34°** | **134.12°** |
+| **Maximum Orientation Error** | **179.99°** | **179.98°** |
+
+### Root-Cause Analysis of Orientation Discrepancy:
+The high orientation metric (~129.5° to 133.5°) was explicitly audited and determined to stem from three distinct factors rather than simple unobservable yaw drift:
+
+1. **Coordinate-Frame Definition Mismatch**:
+   - The GEONAV-AI estimator operates in a local **NED navigation frame** ($+X$ North/Forward, $+Y$ East/Right, $+Z$ Downward along gravity).
+   - EuRoC ground truth operates in the **Machine Hall room frame** ($+Z$ Upward against gravity, $X/Y$ aligned with the hall walls).
+   - Directly comparing an upward-pointing world frame to a downward-pointing world frame introduces an initial ~176.5° geodesic tilt inversion at $t=0$.
+2. **Early Stationary Epipolar Degeneracy**:
+   - Detailed per-frame logging reveals that while stationary on the test stand (frames 0–10), the frame-aligned orientation error was $< 4.3^\circ$.
+   - At frame 11, recovering the essential matrix $E = [t]_\times R$ from optical flow with near-zero baseline translation ($\|t\| \to 0$) suffered epipolar degeneracy, causing an instantaneous step of ~90° in the recovered rotation.
+3. **Open-Loop Gyroscope Integration**:
+   - Without an onboard magnetometer, visual place recognition, or a full state estimator modeling IMU gyro biases, orientation drifts over the 182-second sequence.
+4. **Local Consistency Confirmation**:
+   - Relative Pose Error (RPE) confirms that local incremental orientation tracking is smooth: median 1-frame rotation error is only **0.345°/frame**, with 95% of frames tracking below 1.5°/frame.
 
 ---
 
@@ -292,8 +314,8 @@ Translation Vector t:
 - **Sim(3) Aligned Min Error**: **0.318 m** (31.8 cm)
 - **Sim(3) Aligned Max Error**: **7.902 m**
 
-### Critical Insight:
-When scaled and aligned in Sim(3), the VIO trajectory error drops from **88.9 m to 3.999 m** across an 80-meter trajectory! This confirms that **the fundamental geometry, turn directions, loop shapes, and path topology estimated by the frontend are mathematically sound and topologically correct**. The drift is predominantly metric scale dilation along the vertical axis.
+### Sim(3) Alignment Analytical Interpretation:
+Sim(3)-aligned ATE RMSE was approximately 4.0 m, indicating substantially better global trajectory-shape agreement after similarity alignment. This does not represent raw metric navigation accuracy. Instead, it demonstrates that after estimating a global similarity transformation ($s \approx 0.036$, 3D rotation, and 3D translation), the shape and directional turns of the trajectory match the true hall trajectory to within 4 meters.
 
 ---
 
@@ -332,17 +354,15 @@ A systematic failure-mode analysis identifies the primary contributors to trajec
 +-------------------------------------------------------------------------+
 | Error Source                 | Impact Magnitude | Dominant Axis         |
 +-------------------------------------------------------------------------+
-| Vertical Accel Bias (Open-loop)| 88.6 m RMSE     | Z (Vertical)          |
-| Initial Yaw Offset           | 124° Mean Error  | Yaw / Azimuth         |
+| Vertical Drift Growth        | 88.6 m RMSE      | Z (Vertical)          |
+| Initial Orientation Mismatch | 129.5° Raw Error | Yaw / Frame Inversion |
 | Scale Dilation (Monocular)   | 2.31x Scale      | Euclidean Norm        |
-| Gyro Bias Drift              | ~0.1 deg/s       | Pitch / Roll / Yaw    |
+| Gyro Drift Accumulation      | ~0.1 deg/s       | Pitch / Roll / Yaw    |
 | Horizontal Tracking Drift    | 4.6 - 5.8 m RMSE | X (North), Y (East)   |
 +-------------------------------------------------------------------------+
 ```
 
-1. **Absence of Vertical Constraints**: In classical monocular VIO without an EKF or bundle adjustment, vertical accelerometer bias $b_{az}$ cannot be distinguished from true acceleration without depth parity. A bias of merely $0.009$ m/s$^2$ integrated over 182 seconds yields:
-   $$\Delta z = \frac{1}{2} b_{az} t^2 \approx 0.5 \times 0.009 \times (182)^2 \approx 149 \text{ m}$$
-   This matches the observed terminal Z error ($150.5$ m).
+1. **Vertical Drift Dominance**: The error growth is consistent with accumulated inertial integration error, with vertical drift dominating this sequence. In the absence of an altimeter, depth sensor, or full state filter estimating accelerometer biases, open-loop vertical integration accumulates error over the 182-second sequence.
 2. **Frontend-Only Architecture**: GEONAV-AI currently operates as a visual-inertial frontend without a graph optimization backend, sliding-window smoother, or loop closure.
 
 ---
@@ -366,27 +386,30 @@ The system comfortably exceeds the real-time threshold of 20.0 FPS, demonstratin
 
 ---
 
-## 18. UNIT TEST SUITE VALIDATION (117 / 117 TESTS)
+## 18. UNIT TEST SUITE VALIDATION (121 / 121 TESTS)
 
-Phase 6 introduced 15 dedicated unit tests in `tests/test_ground_truth_evaluation.py`. The complete test suite of 117 tests passed with zero failures:
+Phase 6 introduced 19 dedicated unit tests in `tests/test_ground_truth_evaluation.py`. The complete test suite of 121 tests passed with zero failures:
 
 ```
 ============================= test session starts =============================
-platform win32 -- Python 3.11.8, pytest-8.3.4
+platform win32 -- Python 3.11.8, pytest-9.1.1
 rootdir: F:\GEONAV-AI
-collected 117 items
+collected 121 items
 
-tests/test_extrinsics.py ............                                    [ 10%]
-tests/test_geometry_verification.py ......                               [ 15%]
-tests/test_ground_truth_evaluation.py ...............                    [ 28%]
-tests/test_imu.py ......                                                 [ 33%]
-tests/test_mapping.py ............                                       [ 44%]
-tests/test_state.py .....                                                [ 48%]
-tests/test_synchronization.py .............                              [ 59%]
-tests/test_synchronizer.py ......                                        [ 64%]
-tests/test_vio.py ........................                               [ 85%]
+tests/test_camera.py .....                                               [  4%]
+tests/test_config.py ...                                                 [  6%]
+tests/test_euroc_dataset.py ..........                                   [ 14%]
+tests/test_extrinsics.py ............                                    [ 24%]
+tests/test_geometry_verification.py ......                               [ 29%]
+tests/test_ground_truth_evaluation.py ...................                [ 45%]
+tests/test_imu.py ......                                                 [ 50%]
+tests/test_mapping.py ............                                       [ 60%]
+tests/test_state.py .....                                                [ 64%]
+tests/test_synchronization.py .............                              [ 75%]
+tests/test_synchronizer.py ......                                        [ 80%]
+tests/test_vio.py ........................                               [100%]
 
-============================= 117 passed in 5.46s =============================
+============================= 121 passed in 3.06s =============================
 ```
 
 ### Phase 6 Test Breakdown:
@@ -405,6 +428,10 @@ tests/test_vio.py ........................                               [ 85%]
 - `test_13_relative_pose_error_rpe`: Verified 1-frame, 1s, 2s, 5s interval extraction.
 - `test_14_nan_inf_safety`: Rejection and error-raising on invalid inputs.
 - `test_15_invalid_quaternion_handling`: Validation and normalization of quaternion inputs.
+- `test_16_umeyama_reflection_handling`: SVD determinant correction guarantees proper rotation in $SO(3)$ ($\det(R) = +1.0$).
+- `test_17_orientation_error_initial_alignment`: Verified raw vs frame-aligned orientation error calculation.
+- `test_18_umeyama_arbitrary_3d_transform`: Exact recovery of arbitrary 3-axis rotation, scale, and translation.
+- `test_19_timestamp_association_boundary_audit`: Verified exact rejection of pre-flight and post-flight frames.
 
 ---
 

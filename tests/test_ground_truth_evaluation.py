@@ -298,3 +298,85 @@ def test_15_invalid_quaternion_handling():
     # Near-zero norm quaternion is rejected
     with pytest.raises(ValueError, match="Near-zero quaternion norm"):
         TrajectoryPoint(timestamp=1.0, position=[0, 0, 0], orientation=[0.0, 0, 0, 0])
+
+
+def test_16_umeyama_reflection_handling():
+    """Test 16: Umeyama alignment enforces det(R) = +1.0 and does not return a reflection."""
+    np.random.seed(789)
+    pts_src = np.random.uniform(-5, 5, size=(30, 3))
+    # Create target with an explicit reflection across Z (det = -1)
+    pts_refl = pts_src.copy()
+    pts_refl[:, 2] = -pts_refl[:, 2]
+
+    # Umeyama must return proper rotation in SO(3) with det(R) = +1.0
+    s, R, t = umeyama_alignment(pts_src, pts_refl, with_scale=False)
+    assert np.isclose(np.linalg.det(R), 1.0, atol=1e-10)
+    assert np.allclose(R @ R.T, np.eye(3), atol=1e-10)
+
+
+def test_17_orientation_error_initial_alignment():
+    """Test 17: compute_orientation_errors correctly computes raw vs frame-aligned orientation error."""
+    # Frame 0: 90 deg yaw offset between est and gt
+    # Frame 1: identical relative motion (both rotate 10 deg)
+    ang_offset = math.radians(90.0)
+    q_offset = [math.cos(ang_offset / 2), 0, 0, math.sin(ang_offset / 2)]
+
+    q_gt0 = [1.0, 0.0, 0.0, 0.0]
+    q_est0 = q_offset
+
+    # Frame 1: both rotated by 10 deg pitch
+    ang_pitch = math.radians(10.0)
+    q_pitch = [math.cos(ang_pitch / 2), 0, math.sin(ang_pitch / 2), 0]
+    from geonav.vio.geometry import quaternion_multiply
+    q_gt1 = quaternion_multiply(q_gt0, q_pitch)
+    q_est1 = quaternion_multiply(q_est0, q_pitch)
+
+    quats_gt = np.array([q_gt0, q_gt1])
+    quats_est = np.array([q_est0, q_est1])
+
+    # Raw orientation error should reflect the 90 deg constant offset
+    raw_res = compute_orientation_errors(quats_est, quats_gt, align_initial=False)
+    assert raw_res.rmse_deg == pytest.approx(90.0, abs=1e-6)
+
+    # Frame-aligned orientation error cancels the constant frame offset and yields 0 drift
+    aligned_res = compute_orientation_errors(quats_est, quats_gt, align_initial=True)
+    assert aligned_res.rmse_deg == pytest.approx(0.0, abs=1e-6)
+
+
+def test_18_umeyama_arbitrary_3d_transform():
+    phi, theta, psi = 0.35, -0.42, 1.15
+    Rx = np.array([[1, 0, 0], [0, math.cos(phi), -math.sin(phi)], [0, math.sin(phi), math.cos(phi)]])
+    Ry = np.array([[math.cos(theta), 0, math.sin(theta)], [0, 1, 0], [-math.sin(theta), 0, math.cos(theta)]])
+    Rz = np.array([[math.cos(psi), -math.sin(psi), 0], [math.sin(psi), math.cos(psi), 0], [0, 0, 1]])
+    R_true = Rz @ Ry @ Rx
+    s_true = 0.732
+    t_true = np.array([12.3, -4.5, 6.7])
+
+    np.random.seed(999)
+    pts_src = np.random.uniform(-20, 20, size=(100, 3))
+    pts_dst = s_true * (R_true @ pts_src.T).T + t_true
+
+    s_rec, R_rec, t_rec = umeyama_alignment(pts_src, pts_dst, with_scale=True)
+    assert s_rec == pytest.approx(s_true, abs=1e-10)
+    assert np.allclose(R_rec, R_true, atol=1e-10)
+    assert np.allclose(t_rec, t_true, atol=1e-10)
+
+    aligned = align_trajectory_points(pts_src, s_rec, R_rec, t_rec)
+    ate = compute_ate(aligned, pts_dst)
+    assert ate.rmse < 1e-10
+
+
+def test_19_timestamp_association_boundary_audit():
+    """Test 19: Timestamp association rejects frames outside ground-truth temporal coverage."""
+    # GT runs from t=1.0 to t=5.0 (step 0.05)
+    gt_times = np.arange(1.0, 5.01, 0.05)
+    gt_pts = [TrajectoryPoint(t, [t, 0, 0], [1, 0, 0, 0]) for t in gt_times]
+
+    # Estimated poses run from t=0.0 to t=6.0 (has 1s pre-flight and 1s post-flight)
+    est_times = np.arange(0.0, 6.01, 0.1)
+    est_pts = [TrajectoryPoint(t, [t, 0, 0], [1, 0, 0, 0]) for t in est_times]
+
+    matched, un_est, un_gt = associate_timestamps(est_pts, gt_pts, max_time_diff_s=0.01)
+    # Frames with t < 1.0 (t=0.0..0.9 => 10 frames) and t > 5.0 (t=5.1..6.0 => 10 frames) are unmatched
+    assert un_est == 20
+    assert len(matched) == len(est_pts) - 20

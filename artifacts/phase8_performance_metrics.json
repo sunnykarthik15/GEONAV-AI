@@ -1,0 +1,66 @@
+{
+  "benchmark_type": "Development-machine software benchmark",
+  "platform_note": "Results measured on development laptop. Do NOT extrapolate to embedded/UAV hardware.",
+  "dataset": "EuRoC MH_01_easy",
+  "frames_profiled": 3681,
+  "total_runtime_s": 178.09,
+  "overall_fps": 20.7,
+  "peak_memory_mb": 3.4,
+  "model_size_kb": 25.7,
+  "component_latencies_ms": {
+    "Preprocessing": {
+      "mean_ms": 0.249,
+      "median_ms": 0.221,
+      "p95_ms": 0.365,
+      "total_s": 0.92
+    },
+    "Feature Detection": {
+      "mean_ms": 0.004,
+      "median_ms": 0.004,
+      "p95_ms": 0.006,
+      "total_s": 0.02
+    },
+    "Optical Flow": {
+      "mean_ms": 7.54,
+      "median_ms": 7.518,
+      "p95_ms": 10.536,
+      "total_s": 27.76
+    },
+    "Essential Matrix": {
+      "mean_ms": 3.081,
+      "median_ms": 2.804,
+      "p95_ms": 5.341,
+      "total_s": 11.34
+    },
+    "IMU Propagation": {
+      "mean_ms": 11.133,
+      "median_ms": 9.898,
+      "p95_ms": 16.784,
+      "total_s": 40.98
+    },
+    "Full Pipeline Step": {
+      "mean_ms": 24.978,
+      "median_ms": 24.447,
+      "p95_ms": 34.39,
+      "total_s": 91.95
+    },
+    "ML Feature Extraction": {
+      "mean_ms": 0.689,
+      "median_ms": 0.609,
+      "p95_ms": 1.014,
+      "total_s": 2.54
+    },
+    "ML Inference + Correction": {
+      "mean_ms": 0.508,
+      "median_ms": 0.444,
+      "p95_ms": 0.733,
+      "total_s": 1.87
+    },
+    "Total Frame": {
+      "mean_ms": 48.38,
+      "median_ms": 47.89,
+      "p95_ms": 64.672,
+      "total_s": 178.09
+    }
+  }
+}

@@ -105,6 +105,12 @@
     "groundtruth_path_length_m": 80.51447030843526,
     "scale_ratio": 2.310713104871057
   },
+  "aligned_orientation_error": {
+    "rmse_deg": 133.47444112309992,
+    "mean_deg": 128.06742498884887,
+    "median_deg": 136.64372127063638,
+    "max_deg": 179.99507577080576
+  },
   "velocity_error": {
     "rmse_mps": 1.2860120058192557,
     "x_rmse_mps": 0.5056120139977289,
