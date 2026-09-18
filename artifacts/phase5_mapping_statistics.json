@@ -1,0 +1,36 @@
+{
+  "total_frames": 3682,
+  "keyframes_count": 1526,
+  "total_landmarks": 279,
+  "triangulation_attempts": 194646,
+  "triangulation_successes": 279,
+  "rejected_parallax": 1848,
+  "rejected_negative_depth": 151285,
+  "rejected_depth_range": 9469,
+  "rejected_reprojection": 31765,
+  "rejected_numerical": 0,
+  "mean_reprojection_error": 0.8886456301795201,
+  "median_reprojection_error": 0.8164532182069162,
+  "max_reprojection_error": 1.9478647180198423,
+  "min_depth": 0.20021442268496514,
+  "max_depth": 39.476022134767575,
+  "spatial_extent": {
+    "x": [
+      -26.505451734668632,
+      32.0075516653285
+    ],
+    "y": [
+      -11.640964749261865,
+      42.85689949108505
+    ],
+    "z": [
+      1.3658369560915087,
+      150.46916608652327
+    ]
+  },
+  "runtime_s": 98.69187498092651,
+  "fps": 37.30803574976759,
+  "dataset": "EuRoC MH_01_easy",
+  "trajectory_length_m": 186.76569420342764,
+  "nan_inf_detected": false
+}

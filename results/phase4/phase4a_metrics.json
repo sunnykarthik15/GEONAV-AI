@@ -1,0 +1,40 @@
+{
+  "num_frames_total": 3682,
+  "num_frames_processed": 3682,
+  "tracking_ok_count": 3681,
+  "degraded_count": 0,
+  "failed_count": 0,
+  "nan_inf_found": false,
+  "processing_time_s": 47.11974239349365,
+  "fps": 78.14134400930882,
+  "ms_per_frame": 12.797322757602839,
+  "final_position": [
+    7.920389692031352,
+    -3.9396677873338004,
+    130.83678488767532
+  ],
+  "final_velocity": [
+    0.010842012162140447,
+    -0.1285105571203543,
+    0.6439757671754552
+  ],
+  "final_orientation": [
+    -0.5003849426639733,
+    0.10346539297793317,
+    -0.6415841075910382,
+    0.5720836079610263
+  ],
+  "final_z": 130.83678488767532,
+  "estimated_path_length": 169.9975614624554,
+  "displacement": 131.13549418403858,
+  "maximum_speed": 3.0640707406418906,
+  "min_quaternion_norm": 0.9999999999999998,
+  "max_quaternion_norm": 1.0000000000000002,
+  "gt_path_length": 80.62621184727759,
+  "position_rmse_rel": 76.0502735647662,
+  "final_position_error_rel": 131.63679762967757,
+  "position_rmse_raw": 74.96863705298038,
+  "final_position_error_raw": 130.60697217302734,
+  "mean_tracked_features": 141.98424769147204,
+  "mean_inliers": 138.87832699619773
+}
